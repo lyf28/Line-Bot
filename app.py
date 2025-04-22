@@ -86,7 +86,8 @@ def interpret_user_intent(user_input):
 
     except Exception as e:
         print(f"❌ AI 解析失敗: {e}")
-        return "未知", {}
+        return "錯誤", {"error": str(e)}
+
 
 
 
@@ -108,12 +109,16 @@ def callback():
 # ✅ **處理使用者輸入**
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-    """ 🔥 接收用戶訊息，並根據 AI 判斷的意圖執行對應動作 """
     user_id = event.source.user_id
     text = event.message.text.strip()
+    print(f"📥 來自使用者的輸入：{text}")  # ← 加這行
+
 
     # ✅ 讓 AI 解析用戶輸入
     intent, params = interpret_user_intent(text)
+    print(f"🎯 AI 判斷意圖：{intent}")
+    print(f"📦 參數：{params}")
+
 
     if intent == "記帳":
         item = params.get("item")
@@ -127,6 +132,12 @@ def handle_message(event):
 
         else:
             reply = "❌ 抱歉我沒聽懂你要記帳的項目與金額，可以再說一次嗎？例如：我今天喝珍奶花了55元"
+    
+    if intent == "錯誤":
+        reply = "⚠️ AI 處理發生錯誤，請稍後再試一次！"
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+        return  # ⬅️ 加上這行，避免繼續執行後面的邏輯
+
 
 
     elif intent == "查詢本月":
