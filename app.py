@@ -12,6 +12,8 @@ from db import (
 )
 
 import os
+from openai import OpenAI
+
 
 LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
@@ -31,20 +33,18 @@ handler = WebhookHandler(LINE_CHANNEL_SECRET)
 import json
 
 def interpret_user_intent(user_input):
-    print(f"✅ 目前使用的 OPENAI_API_KEY：{os.getenv('OPENAI_API_KEY')}")
-    """ 🌟 使用 GPT-4 解析用戶輸入的意圖 """
-    prompt = f"""
-你是一個 LINE 上的記帳機器人，請幫我從以下句子中判斷使用者的意圖，並**只回傳純 JSON，不要加任何說明文字**，格式如下：
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-{{
-  "intent": "記帳",
-  "params": {{
-    "item": "拉麵",
-    "amount": 150
-  }}
-}}
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4-turbo",
+            messages=[
+                {
+                    "role": "system",
+                    "content": """
+你是一個專業的 LINE 記帳機器人，只負責將使用者的輸入「轉換為 JSON 格式」，請務必使用繁體中文，且不加入多餘回應。
 
-目前支援的 intent 有：
+僅支援以下 intent：
 - "記帳"
 - "修改分類"
 - "修改金額"
@@ -57,29 +57,29 @@ def interpret_user_intent(user_input):
 - "設定提醒"
 - "查詢分類統計"
 
-現在請解析這句話：
-「{user_input}」
+請確保格式為：
+{
+  "intent": "意圖（用繁體中文）",
+  "params": {
+    "item": "品項",
+    "amount": 金額（數字）,
+    "date": "YYYY-MM-DD",
+    "category": "分類名稱"
+    ...（視情況給其他參數）
+  }
+}
 """
-
-    try:
-        print("📨 發送給 GPT 的 prompt：")
-        print(prompt)
-        print("🔁 呼叫 GPT 中...")
-
-        response = openai.ChatCompletion.create(
-            model="gpt-4-turbo",
-            messages=[
-                {"role": "system", "content": "你是一個記帳機器人，請只回傳 JSON，不要加說明。"},
-                {"role": "user", "content": prompt}
+                },
+                {
+                    "role": "user",
+                    "content": f"請解析這句話：『{user_input}』"
+                }
             ]
         )
 
         ai_output = response.choices[0].message.content.strip()
-        print("=== Prompt ===")
-        print(prompt)
-        print("=== GPT 回傳 ===")
+        print("🧠 GPT 回傳：")
         print(ai_output)
-
 
         parsed_response = json.loads(ai_output)
         return parsed_response.get("intent", "未知"), parsed_response.get("params", {})
@@ -87,6 +87,7 @@ def interpret_user_intent(user_input):
     except Exception as e:
         print(f"❌ AI 解析失敗: {e}")
         return "未知", {}
+
 
 
 
