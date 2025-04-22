@@ -4,27 +4,32 @@ from flask import Flask, request
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
+import openai
 from db import (
     save_expense, get_monthly_transactions, get_daily_expense,
     delete_expense_by_id, update_expense_amount_by_id, update_category_by_id,
     set_spending_alert, check_spending_alert, add_new_category, clear_all_expenses,
-    get_last_expense_id, get_monthly_total
+    get_last_expense_id, get_monthly_total, get_monthly_category_summary
 )
 
 import os
 from openai import OpenAI
+from config import LINE_ACCESS_TOKEN, LINE_CHANNEL_SECRET, OPENAI_API_KEY
 
 
-LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
-LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+#LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
+#LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
+#OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai.api_key = OPENAI_API_KEY
+
 
 user_last_expense_id = {}
 
 app = Flask(__name__)
 
-import openai
-openai.api_key = os.getenv("OPENAI_API_KEY")
+#import openai
+#openai.api_key = os.getenv("OPENAI_API_KEY")
 
 line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
@@ -33,7 +38,7 @@ handler = WebhookHandler(LINE_CHANNEL_SECRET)
 import json
 
 def interpret_user_intent(user_input):
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    client = OpenAI(api_key=OPENAI_API_KEY)
 
     try:
         response = client.chat.completions.create(
@@ -68,6 +73,9 @@ def interpret_user_intent(user_input):
     ...（視情況給其他參數）
   }
 }
+
+如果只有月和日，請自動補上當前年份（例如輸入「4/22」時，自動解析為「2025-04-22」）。
+如果使用者說「第12筆分類改成娛樂」，請提取出 expense_id 為 12，並將 new_category 設為「娛樂」。
 """
                 },
                 {
@@ -113,12 +121,30 @@ def handle_message(event):
     text = event.message.text.strip()
     print(f"📥 來自使用者的輸入：{text}")  # ← 加這行
 
+    if re.match(r"(刪|刪除).*(\d+)", text):
+        match = re.search(r"(\d+)", text)
+        if match:
+            expense_id = int(match.group(1))
+            reply = delete_expense_by_id(user_id, expense_id)
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+            return
+
+    print("=== event.raw ===")
+    print(event)
+    print("=================")
+
 
     # ✅ 讓 AI 解析用戶輸入
     intent, params = interpret_user_intent(text)
     print(f"🎯 AI 判斷意圖：{intent}")
     print(f"📦 參數：{params}")
 
+    #intent = intent.strip()
+
+    if intent == "錯誤":
+        reply = "⚠️ AI 處理發生錯誤，請稍後再試一次！"
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+        return  # ⬅️ 加上這行，避免繼續執行後面的邏輯
 
     if intent == "記帳":
         item = params.get("item")
@@ -128,15 +154,13 @@ def handle_message(event):
             category = save_expense(user_id, item, amount)
             last_id = get_last_expense_id(user_id)
             user_last_expense_id[user_id] = last_id
+            warning = check_spending_alert(user_id)
             reply = f"✅ 好的，已幫你記下「{item} {amount} 元」，分類為「{category}」"
+            if warning:
+                reply += f"\n\n{warning}"
 
         else:
             reply = "❌ 抱歉我沒聽懂你要記帳的項目與金額，可以再說一次嗎？例如：我今天喝珍奶花了55元"
-    
-    if intent == "錯誤":
-        reply = "⚠️ AI 處理發生錯誤，請稍後再試一次！"
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
-        return  # ⬅️ 加上這行，避免繼續執行後面的邏輯
 
 
 
@@ -158,12 +182,21 @@ def handle_message(event):
             reply = "❌ 找不到可刪除的記錄"
 
     elif intent == "修改分類":
-        expense_id = params.get("expense_id") or user_last_expense_id.get(user_id)
+        # 嘗試從 params 中抓取 ID 和分類名稱
+        expense_id = params.get("expense_id")
         new_category = params.get("new_category")
+
+        # 如果沒有給 ID，就預設用最新一筆
+        if not expense_id:
+            expense_id = get_last_expense_id(user_id)
+
         if expense_id and new_category:
             reply = update_category_by_id(user_id, expense_id, new_category)
+        elif not new_category:
+            reply = "❌ 請說明要修改成哪一個分類，例如「分類改成交通」"
         else:
-            reply = "❌ 請說明要修改的分類，例如「分類改成交通」"
+            reply = "❌ 找不到可以修改的記錄"
+
 
 
     elif intent == "修改金額":
@@ -179,11 +212,15 @@ def handle_message(event):
 
     elif intent == "設定提醒":
         category = params.get("category")
-        limit = params.get("limit")
+        limit = params.get("limit") or params.get("amount")  # ← 加這行兼容 AI 回傳 amount
+
+        print(f"🔍 category: {category}, limit: {limit}")
+
         if category and limit:
             reply = set_spending_alert(user_id, category, limit)
         else:
             reply = "❌ 設定提醒格式錯誤，請輸入「設定提醒 類別 上限金額」"
+
 
     elif intent == "新增分類":
         category_name = params.get("category_name")

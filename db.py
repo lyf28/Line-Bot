@@ -2,9 +2,11 @@ import sqlite3
 import openai
 import os
 from openai import OpenAI
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+from config import OPENAI_API_KEY
+client = OpenAI(api_key=OPENAI_API_KEY)
+#client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+#OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 
 DB_NAME = "expenses.db"
@@ -53,12 +55,21 @@ def init_db():
 
 def classify_with_ai(item_name):
     """ 使用 AI 自動分類消費品項 """
-    prompt = f"請幫我將這個消費品項分類成「餐費、飲料、娛樂、交通、購物、醫療、其他」中的一類：{item_name}"
+    prompt = f"""
+使用者記了一筆消費：「{item_name}」
+
+請幫我自動幫這筆消費分類。如果它屬於以下常見類別，請選其中一個：
+「餐費、飲料、娛樂、交通、購物、醫療、其他」
+
+如果不屬於這些，也可以依照品項的意思，自動創建一個簡短合理的新分類（例如「寵物」、「保險」、「繳稅」）。
+
+請你只回傳分類名稱，不要加任何其他說明或語氣詞。
+"""
 
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": "你是一個消費分類助手"},
+            {"role": "system", "content": "你是一個消費分類助手，只會輸出分類名稱，不會說明。"},
             {"role": "user", "content": prompt}
         ]
     )
@@ -96,7 +107,7 @@ def get_monthly_transactions(user_id):
     result = "📋 本月消費紀錄：\n"
     for t in transactions:
         result += f"ID:{t[0]} | {t[4][:10]} - {t[1]} {t[3]} 元（{t[2]}）\n"
-    
+
     return result
 
 def get_daily_expense(user_id, date):
