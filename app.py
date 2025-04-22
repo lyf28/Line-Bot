@@ -74,9 +74,11 @@ def interpret_user_intent(user_input):
         )
 
         ai_output = response.choices[0].message.content.strip()
-        print("======= AI 回傳原始內容 =======")
+        print("=== Prompt ===")
+        print(prompt)
+        print("=== GPT 回傳 ===")
         print(ai_output)
-        print("================================")
+
 
         parsed_response = json.loads(ai_output)
         return parsed_response.get("intent", "未知"), parsed_response.get("params", {})
