@@ -33,9 +33,17 @@ import json
 def interpret_user_intent(user_input):
     """ 🌟 使用 GPT-4 解析用戶輸入的意圖 """
     prompt = f"""
-你是一個 LINE 上的記帳機器人，可以理解使用者的自然語言指令。請從這句話中判斷用戶想做什麼，並用 JSON 格式回傳：
+    你是一個 LINE 上的記帳機器人，請幫我從以下句子中判斷使用者的意圖，並**只回傳純 JSON，不要加任何說明文字**，格式如下：
 
-- intent：使用者意圖，可為：
+    {{
+      "intent": "記帳",
+      "params": {{
+        "item": "拉麵",
+        "amount": 150
+        }}
+    }}
+
+    目前支援的 intent 有：
     - "記帳"
     - "修改分類"
     - "修改金額"
@@ -48,15 +56,9 @@ def interpret_user_intent(user_input):
     - "設定提醒"
     - "查詢分類統計"
 
-- params：傳入的資訊（如 item、amount、category、date 等）
-
-請只回傳 JSON。例如：
-{{"intent": "記帳", "params": {{"item": "拉麵", "amount": 150}}}}
-
-現在請解析這句話：
-「{user_input}」
-"""
-
+    現在請解析這句話：
+    「{user_input}」
+    """
 
     try:
         response = openai.ChatCompletion.create(
@@ -66,7 +68,9 @@ def interpret_user_intent(user_input):
         )
 
         ai_output = response.choices[0].message.content.strip()
-        print(f"🟢 AI 回應: {ai_output}")  # ✅ Debug 看 AI 回應是否正常
+        print("======= AI 回傳原始內容 =======")
+        print(ai_output)
+        print("================================")
 
         # 確保 AI 回應符合 JSON 格式
         parsed_response = json.loads(ai_output)
