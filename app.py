@@ -8,7 +8,7 @@ from db import (
     save_expense, get_monthly_transactions, get_daily_expense,
     delete_expense_by_id, update_expense_amount_by_id, update_category_by_id,
     set_spending_alert, check_spending_alert, add_new_category, clear_all_expenses,
-    get_last_expense_id
+    get_last_expense_id, get_monthly_total
 )
 
 import os
@@ -16,6 +16,8 @@ import os
 LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+user_last_expense_id = {}
 
 app = Flask(__name__)
 
@@ -25,27 +27,36 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
-
-# ✅ **讓 AI 來判斷用戶的意圖**
+# 讓 AI 來判斷用戶的意圖
 import json
 
 def interpret_user_intent(user_input):
     """ 🌟 使用 GPT-4 解析用戶輸入的意圖 """
     prompt = f"""
-    你是一個智能記帳機器人，請解析用戶輸入的指令並返回 JSON 格式：
-    
-    - `intent`: 用戶的意圖（"記帳"、"查詢本月"、"查詢特定日期"、"刪除"、"修改金額"、"修改分類"、"清除所有記錄"、"設定提醒"、"新增分類"）
-    - `params`: 相關參數，例如 `{user_input}` 可能解析成：
-        - `"拉麵 150"` → `{{"intent": "記帳", "params": {{"item": "拉麵", "amount": 150}}}}`
-        - `"這個月花了多少"` → `{{"intent": "查詢本月", "params": {{}}}}`
-        - `"刪除剛剛那筆"` → `{{"intent": "刪除", "params": {{}}}}`
+你是一個 LINE 上的記帳機器人，可以理解使用者的自然語言指令。請從這句話中判斷用戶想做什麼，並用 JSON 格式回傳：
 
-    若無法解析，請回傳：
-    `{{"intent": "未知", "params": {{}}}}`
-    
-    現在請解析這句話：
-    "{user_input}"
-    """
+- intent：使用者意圖，可為：
+    - "記帳"
+    - "修改分類"
+    - "修改金額"
+    - "查詢本月"
+    - "查詢本月總額"
+    - "查詢特定日期"
+    - "刪除"
+    - "清除所有記錄"
+    - "新增分類"
+    - "設定提醒"
+    - "查詢分類統計"
+
+- params：傳入的資訊（如 item、amount、category、date 等）
+
+請只回傳 JSON。例如：
+{{"intent": "記帳", "params": {{"item": "拉麵", "amount": 150}}}}
+
+現在請解析這句話：
+「{user_input}」
+"""
+
 
     try:
         response = openai.ChatCompletion.create(
@@ -97,12 +108,19 @@ def handle_message(event):
 
         if item and amount:
             category = save_expense(user_id, item, amount)
-            reply = f"✅ 已記錄：{item} {amount} 元（分類：{category}）"
+            last_id = get_last_expense_id(user_id)
+            user_last_expense_id[user_id] = last_id
+            reply = f"✅ 好的，已幫你記下「{item} {amount} 元」，分類為「{category}」"
+
         else:
-            reply = "❌ 記帳格式錯誤，請輸入「品項 金額」，例如：拉麵 150"
+            reply = "❌ 抱歉我沒聽懂你要記帳的項目與金額，可以再說一次嗎？例如：我今天喝珍奶花了55元"
+
 
     elif intent == "查詢本月":
         reply = get_monthly_transactions(user_id)
+
+    elif intent == "查詢本月總額":
+        reply = get_monthly_total(user_id)
 
     elif intent == "查詢特定日期":
         date = params.get("date")
@@ -116,12 +134,13 @@ def handle_message(event):
             reply = "❌ 找不到可刪除的記錄"
 
     elif intent == "修改分類":
-        expense_id = params.get("expense_id") or get_last_expense_id(user_id)
+        expense_id = params.get("expense_id") or user_last_expense_id.get(user_id)
         new_category = params.get("new_category")
         if expense_id and new_category:
             reply = update_category_by_id(user_id, expense_id, new_category)
         else:
-            reply = "❌ 修改分類格式錯誤，請輸入「修改分類 記錄ID 新分類」"
+            reply = "❌ 請說明要修改的分類，例如「分類改成交通」"
+
 
     elif intent == "修改金額":
         expense_id = params.get("expense_id") or get_last_expense_id(user_id)
@@ -148,6 +167,9 @@ def handle_message(event):
             reply = add_new_category(user_id, category_name)
         else:
             reply = "❌ 請輸入要新增的分類名稱"
+    
+    elif intent == "查詢分類統計":
+        reply = get_monthly_category_summary(user_id)
 
     else:
         reply = "❌ 無法理解你的指令，請輸入有效指令"

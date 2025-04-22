@@ -237,5 +237,35 @@ def clear_all_expenses(user_id):
     conn.close()
     return "✅ 已清除你的所有記帳資料！"
 
+def get_monthly_total(user_id):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT SUM(amount) FROM expenses
+        WHERE user_id = ? AND strftime('%Y-%m', date) = strftime('%Y-%m', 'now')
+    """, (user_id,))
+    total = cursor.fetchone()[0] or 0
+    conn.close()
+    return f"📊 本月總花費：{total} 元"
+
+def get_monthly_category_summary(user_id):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT category, SUM(amount) FROM expenses
+        WHERE user_id = ? AND strftime('%Y-%m', date) = strftime('%Y-%m', 'now')
+        GROUP BY category
+    """, (user_id,))
+    data = cursor.fetchall()
+    conn.close()
+
+    if not data:
+        return "📊 本月還沒有任何消費紀錄喔！"
+
+    result = "📊 本月各分類花費如下：\n"
+    for category, total in data:
+        result += f"• {category}：{total} 元\n"
+    return result
+
 
 
