@@ -2,11 +2,11 @@ import sqlite3
 import openai
 import os
 from openai import OpenAI
-from config import OPENAI_API_KEY
-client = OpenAI(api_key=OPENAI_API_KEY)
-#client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+#from config import OPENAI_API_KEY
+#client = OpenAI(api_key=OPENAI_API_KEY)
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-#OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 
 DB_NAME = "expenses.db"

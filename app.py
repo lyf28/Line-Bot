@@ -14,14 +14,14 @@ from db import (
 
 import os
 from openai import OpenAI
-from config import LINE_ACCESS_TOKEN, LINE_CHANNEL_SECRET, OPENAI_API_KEY
+#from config import LINE_ACCESS_TOKEN, LINE_CHANNEL_SECRET, OPENAI_API_KEY
 
 
 
-#LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
-#LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
-#OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-openai.api_key = OPENAI_API_KEY
+LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
+LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+#openai.api_key = OPENAI_API_KEY
 
 
 user_last_expense_id = {}
@@ -29,7 +29,7 @@ user_last_expense_id = {}
 app = Flask(__name__)
 
 #import openai
-#openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
