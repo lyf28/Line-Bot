@@ -31,6 +31,7 @@ handler = WebhookHandler(LINE_CHANNEL_SECRET)
 import json
 
 def interpret_user_intent(user_input):
+    print(f"✅ 目前使用的 OPENAI_API_KEY：{os.getenv('OPENAI_API_KEY')}")
     """ 🌟 使用 GPT-4 解析用戶輸入的意圖 """
     prompt = f"""
 你是一個 LINE 上的記帳機器人，請幫我從以下句子中判斷使用者的意圖，並**只回傳純 JSON，不要加任何說明文字**，格式如下：
