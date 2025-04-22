@@ -27,7 +27,6 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # ✅ **讓 AI 來判斷用戶的意圖**
 import json
 from openai import OpenAI
-from config import OPENAI_API_KEY
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
