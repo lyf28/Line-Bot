@@ -5,13 +5,18 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 from openai import OpenAI
-from config import LINE_ACCESS_TOKEN, LINE_CHANNEL_SECRET, OPENAI_API_KEY
 from db import (
     save_expense, get_monthly_transactions, get_daily_expense,
     delete_expense_by_id, update_expense_amount_by_id, update_category_by_id,
     set_spending_alert, check_spending_alert, add_new_category, clear_all_expenses,
     get_last_expense_id
 )
+
+import os
+
+LINE_ACCESS_TOKEN = os.getenv("LINE_ACCESS_TOKEN")
+LINE_CHANNEL_SECRET = os.getenv("LINE_CHANNEL_SECRET")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 app = Flask(__name__)
 
