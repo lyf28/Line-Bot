@@ -4,7 +4,6 @@ from flask import Flask, request
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
-from openai import OpenAI
 from db import (
     save_expense, get_monthly_transactions, get_daily_expense,
     delete_expense_by_id, update_expense_amount_by_id, update_category_by_id,
@@ -20,13 +19,15 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 app = Flask(__name__)
 
+import openai
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
 line_bot_api = LineBotApi(LINE_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
-client = OpenAI(api_key=OPENAI_API_KEY)
+
 
 # ✅ **讓 AI 來判斷用戶的意圖**
 import json
-from openai import OpenAI
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
@@ -49,7 +50,7 @@ def interpret_user_intent(user_input):
     """
 
     try:
-        response = client.chat.completions.create(
+        response = openai.ChatCompletion.create(
             model="gpt-4-turbo",
             messages=[{"role": "system", "content": "你是一個智能記帳機器人"},
                       {"role": "user", "content": prompt}]
