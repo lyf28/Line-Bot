@@ -53,8 +53,7 @@ def classify_with_ai(item_name):
     """ 使用 AI 自動分類消費品項 """
     prompt = f"請幫我將這個消費品項分類成「餐費、飲料、娛樂、交通、購物、醫療、其他」中的一類：{item_name}"
 
-    client = openai.OpenAI(api_key=OPENAI_API_KEY)
-    response = client.chat.completions.create(
+    response = openai.ChatCompletion.create(
         model="gpt-4o",
         messages=[
             {"role": "system", "content": "你是一個消費分類助手"},

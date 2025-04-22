@@ -29,8 +29,6 @@ handler = WebhookHandler(LINE_CHANNEL_SECRET)
 # ✅ **讓 AI 來判斷用戶的意圖**
 import json
 
-client = OpenAI(api_key=OPENAI_API_KEY)
-
 def interpret_user_intent(user_input):
     """ 🌟 使用 GPT-4 解析用戶輸入的意圖 """
     prompt = f"""
